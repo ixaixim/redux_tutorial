@@ -29,6 +29,28 @@ export const addNewPost = createAsyncThunk('posts/addNewPost', async (initialPos
     }
 })
 
+export const updatePost = createAsyncThunk('posts/updatePost', async (initialPost) => {
+    const { id } = initialPost;
+    try {
+        const response = await axios.put(`${POSTS_URL}/${id}`, initialPost);
+        return response.data;
+    } catch (err) {
+        // return err.message;
+        return initialPost; // only for testing Redux
+    }
+})
+
+export const deletePost = createAsyncThunk('posts/deletePost', async (initialPost) => {
+    const { id } = initialPost;
+    try {
+        const response = await axios.delete(`${POSTS_URL}/${id}`);
+        if (response?.status === 200) return initialPost;
+        return `${response?.status}: ${response?.statusText}`;
+    } catch (err) {
+        return err.message;
+    }
+})
+
 const postsSlice = createSlice({
     name: 'posts',
     initialState,
@@ -70,6 +92,7 @@ const postsSlice = createSlice({
         }
     },
 
+    // handle async actions with extraReducers
     extraReducers(builder) {
         //similar to switch statement, but based on builder.addCase(action, reducer)
         // these operations set the status state of posts depending on fetchPosts status
@@ -116,6 +139,27 @@ const postsSlice = createSlice({
                 console.log(action.payload);
                 state.posts.push(action.payload);
             })
+            .addCase(updatePost.fulfilled, (state, action) => {
+                if (!action.payload?.id) {
+                    console.log('Update could not complete'); 
+                    console.log(action.payload);
+                    return;
+                }
+                const { id } = action.payload;
+                action.payload.date = new Date().toISOString();
+                const posts = state.posts.filter(post => post.id !== id);
+                state.posts = [...posts, action.payload];
+            })
+            .addCase(deletePost.fulfilled, (state, action) => {
+                if (!action.payload?.id) {
+                    console.log('Delete could not complete'); 
+                    console.log(action.payload);
+                    return;
+                }
+                const { id } = action.payload;
+                const posts = state.posts.filter(post => post.id !== id);
+                state.posts = posts;
+            })
 
     }
     // inside createSlice, immer.js is used to allow us to write "mutating" logic in reducers
@@ -129,6 +173,8 @@ const postsSlice = createSlice({
 export const selectAllPosts = (state) => state.posts.posts;
 export const getPostsStatus = (state) => state.posts.status;
 export const getPostsError = (state) => state.posts.error;
+
+export const selectPostById = (state, postId) => state.posts.posts.find(post => post.id === postId);
 
 export const { postAdded, reactionAdded } = postsSlice.actions;
 
